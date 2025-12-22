@@ -2,7 +2,7 @@
 
 **A deterministic constraint-satisfaction engine for the Dominosa logic puzzle, built on a custom pointer-based graph architecture.**
 
---- 
+---  
 
 ## Executive Summary
 
