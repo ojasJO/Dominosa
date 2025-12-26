@@ -2,7 +2,7 @@ from structures import BondState, StrategyLevel
 from board import DominosaBoard
 
 class Solver:
-    def _init_(self, board: DominosaBoard):
+    def __init__(self, board: DominosaBoard):
         self.board = board
 
     def rebuild_constraints(self):
