@@ -8,7 +8,7 @@ class DominosaBoard:
         self.cells = []
         self.edges = []
         self.possible_moves = {}
-        
+
         self._init_cells()
         self._init_graph_connections()
         self._init_constraints()
@@ -23,11 +23,11 @@ class DominosaBoard:
     def _init_graph_connections(self):
         for r in range(self.rows):
             for c in range(self.cols - 1):
-                self._create_bond(self.cells[r][c], self.cells[r][c+1])
-        
+                self._create_bond(self.cells[r][c], self.cells[r][c + 1])
+
         for r in range(self.rows - 1):
             for c in range(self.cols):
-                self._create_bond(self.cells[r][c], self.cells[r+1][c])
+                self._create_bond(self.cells[r][c], self.cells[r + 1][c])
 
     def _create_bond(self, node_a, node_b):
         bond = EdgeBond(node_a, node_b)
