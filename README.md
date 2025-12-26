@@ -1,4 +1,4 @@
-i# Dominosa Solver: Architectural Prototype (Phase 1)
+# Dominosa Solver: Architectural Prototype (Phase 1)
 
 **A deterministic constraint-satisfaction engine for the Dominosa logic puzzle, built on a custom pointer-based graph architecture.**
 
