@@ -48,18 +48,4 @@ The solver iterates these steps until it reaches a fixed point or no further det
 
 ---
 
-## Installation and Usage
 
-### Prerequisites
-- Python 3.10 or higher
-- Windows, Linux, or macOS
-
-### Setup
-1. Clone the repository or download the source code.
-2. Create and activate a virtual environment:
-   ```bash
-   python -m venv venv
-   # Windows
-   .\venv\Scripts\activate
-   # Linux / macOS
-   source venv/bin/activate
