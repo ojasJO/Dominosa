@@ -1,135 +1,134 @@
-from structures import BondState, StrategyLevel
-from board import DominosaBoard
+import time
+from structures import BondState
 
-class Solver:
-    def __init__(self, board: DominosaBoard):
+class HybridSolver:
+    def __init__(self, board, callback=None):
         self.board = board
+        self.callback = callback
+        self.dp_memo = {}
 
-    def rebuild_constraints(self):
-        self.board.possible_moves.clear()
-        
-        for edge in self.board.edges:
-            if edge.state == BondState.BLOCKED:
-                edge.state = BondState.UNDECIDED
-            
-            pid = edge.get_pair_id()
-            if pid not in self.board.possible_moves:
-                self.board.possible_moves[pid] = []
-            self.board.possible_moves[pid].append(edge)
+    def log(self, msg, cells=[]):
+        if self.callback: self.callback(msg, cells)
 
-        confirmed_edges = [e for e in self.board.edges if e.state == BondState.CONFIRMED]
-        
-        for edge in confirmed_edges:
-            pair = edge.get_pair_id()
-            if pair in self.board.possible_moves:
-                del self.board.possible_moves[pair]
-            
-            self._block_neighbors(edge.node_a)
-            self._block_neighbors(edge.node_b)
-            
-        self._clean_invalid_possibilities()
 
-    def sanity_check(self):
-        placed_pairs = []
-        for edge in self.board.edges:
-            if edge.state == BondState.CONFIRMED:
-                pair = edge.get_pair_id()
-                if pair in placed_pairs:
-                    return f"ERROR: Duplicate Pair {pair} found!"
-                placed_pairs.append(pair)
-        return None
-
-    def find_hint(self, strategy: StrategyLevel):
-        error = self.sanity_check()
-        if error: return None, error
-
-        if strategy == StrategyLevel.LEVEL_3_ADVANCED:
-            move = self._find_duplicate_blocker()
-            if move: return move, "Duplicate Prevention (Wall)"
-
-        move = self._find_unique_move()
-        if move: return move, "Uniqueness (Global)"
-
-        if strategy != StrategyLevel.LEVEL_1_BASIC:
-            move = self._find_isolated_move()
-            if move: return move, "Isolation (Local)"
-
-        return None, "No forced moves found."
-
-    def apply_move(self, edge):
-        if edge.state == BondState.BLOCKED: return 
-            
-        edge.state = BondState.CONFIRMED
-        edge.node_a.occupied = True
-        edge.node_b.occupied = True
-        
-        self._block_neighbors(edge.node_a)
-        self._block_neighbors(edge.node_b)
-
-        pair = edge.get_pair_id()
-        if pair in self.board.possible_moves:
-            del self.board.possible_moves[pair]
-            
-        self._clean_invalid_possibilities()
-
-    def _find_duplicate_blocker(self):
-        placed_pairs = set()
-        for edge in self.board.edges:
-            if edge.state == BondState.CONFIRMED:
-                placed_pairs.add(edge.get_pair_id())
-        
-        for edge in self.board.edges:
-            if edge.state == BondState.UNDECIDED:
-                if edge.get_pair_id() in placed_pairs:
-                    edge.state = BondState.BLOCKED
-                    return edge
-        return None
-
-    def _find_unique_move(self):
-        candidates = []
-
-        for pair, edge_list in self.board.possible_moves.items():
-            valid_edges = [e for e in edge_list 
-                           if e.state == BondState.UNDECIDED 
-                           and not e.node_a.occupied and not e.node_b.occupied]
-            
-            candidates.append((len(valid_edges), valid_edges))
-
-        candidates.sort(key=lambda x: x[0]) 
-
-        for count, edges in candidates:
-            if count == 1:
-                return edges[0] 
-            
-            if count > 1:
-                break
-        
-        return None
-
-    def _find_isolated_move(self):
-        for row in self.board.cells:
-            for cell in row:
+    def get_singles(self):              
+        moves = []
+        for r in range(self.board.rows):
+            for c in range(self.board.cols):
+                cell = self.board.cells[r][c]
                 if cell.occupied: continue
-                valid_bonds = []
-                for edge in self.board.edges:
-                    if edge.state == BondState.UNDECIDED:
-                        neighbor = edge.node_b if edge.node_a == cell else edge.node_a
-                        if not neighbor.occupied:
-                            if edge.node_a == cell or edge.node_b == cell:
-                                valid_bonds.append(edge)
-                if len(valid_bonds) == 1:
-                    return valid_bonds[0]
-        return None
+                
+               
+                valid = [e for e in cell.edges if e.state == BondState.UNDECIDED 
+                         and not e.node_a.occupied and not e.node_b.occupied
+                         and e.get_pair_id() in self.board.available]
+                
+                if len(valid) == 1: moves.append(valid[0])
+        return moves
 
-    def _block_neighbors(self, node):
-        for edge in self.board.edges:
-            if edge.state == BondState.UNDECIDED:
-                if edge.node_a == node or edge.node_b == node:
-                    edge.state = BondState.BLOCKED
 
-    def _clean_invalid_possibilities(self):
-        for pair_id in list(self.board.possible_moves.keys()):
-            valid = [e for e in self.board.possible_moves[pair_id] 
-                     if e.state == BondState.UNDECIDED
-                     and not e.node_a.occupied and not e.node_b.occupied]
-            self.board.possible_moves[pair_id] = valid
+    def get_hidden_singles(self):       
+        self.log("Scanning Hidden Singles...", [])
+        moves = []
+        for pair in list(self.board.available):
+            candidates = [e for e in self.board.edges 
+                          if e.state == BondState.UNDECIDED 
+                          and not e.node_a.occupied and not e.node_b.occupied
+                          and e.get_pair_id() == pair]
+            if len(candidates) == 1: moves.append(candidates[0])
+        return moves
+
+
+    def get_forced_edges(self):
+        self.log("Analyzing Graph Topology...", [])
+        adj = {}
+        all_edges = []
+        
+
+        for r in range(self.board.rows):
+            for c in range(self.board.cols):
+                cell = self.board.cells[r][c]
+                if cell.occupied or (r+c)%2 != 0: continue
+                
+                valid = [e.node_a if e.node_b==cell else e.node_b for e in cell.edges
+                         if e.state != BondState.BLOCKED and not (e.node_a.occupied or e.node_b.occupied)
+                         and e.get_pair_id() in self.board.available]
+                adj[cell] = valid
+                for v in valid: all_edges.append((cell, v))
+
+
+        base_match = self._match(adj)
+        forced = []
+        
+
+        seen_edges = set()
+        for u, v in all_edges:
+            pair_key = tuple(sorted((id(u), id(v))))
+            if pair_key in seen_edges: continue
+            seen_edges.add(pair_key)
+
+
+            if v in adj[u]:
+                adj[u].remove(v)
+                if self._match(adj) < base_match:
+
+                    for e in u.edges:
+                        if (e.node_a==v or e.node_b==v): forced.append(e)
+                adj[u].append(v)
+        return forced
+
+    def _match(self, adj):
+        match, count = {}, 0
+        for u in adj:
+            if self._dfs(u, adj, set(), match): count += 1
+        return count
+
+    def _dfs(self, u, adj, vis, match):
+        for v in adj[u]:
+            if v not in vis:
+                vis.add(v)
+                if v not in match or self._dfs(match[v], adj, vis, match):
+                    match[v] = u
+                    return True
+        return False
+
+
+    def check_dp(self, move):
+
+        mask = [1 if c.occupied or c in [move.node_a, move.node_b] else 0 
+                for row in self.board.cells for c in row]
+        self.dp_memo = {}
+        return self._can_tile(tuple(mask), self.board.cols)
+
+    def _can_tile(self, mask, w):
+        if all(mask): return True
+        if mask in self.dp_memo: return self.dp_memo[mask]
+        
+        i = mask.index(0)
+
+        res = False
+        if (i%w)+1 < w and i+1 < len(mask) and mask[i+1] == 0:
+            m = list(mask); m[i]=m[i+1]=1
+            if self._can_tile(tuple(m), w): res = True
+        
+        if not res and i+w < len(mask) and mask[i+w] == 0:
+            m = list(mask); m[i]=m[i+w]=1
+            if self._can_tile(tuple(m), w): res = True
+
+        self.dp_memo[mask] = res
+        return res
+
+
+    def solve_step(self):
+
+        for m in self.get_naked_singles():
+            if self.check_dp(m): return m, "Greedy"
+            
+
+        for m in self.get_hidden_singles():
+            if self.check_dp(m): return m, "Hidden Single"
+
+
+        if forced := self.get_forced_edges(): return forced[0], "Graph Force"
+        
+        return None, "Stuck"
