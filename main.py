@@ -81,26 +81,45 @@ class GridWidget(QWidget):
                 if (pos.x()-cx)**2 + (pos.y()-cy)**2 < (self.cell_s/2.5)**2:
                     return self.board.get_cell(r, c)
         return None
+def mousePressEvent(self, e):
+    cell = self.get_cell(e.pos())
 
-    def mousePressEvent(self, e):
-        cell = self.get_cell(e.pos())
-
-        if not cell:
-            self.sel = None
-            return
-
-        if cell.occupied:
-            self.main.controller.break_bond(cell)
-            self.update()
-            return
-
-        if not self.sel:
-            self.sel = cell
-            return
-
-        self.main.handle_move(self.sel, cell)
+    # Case 1: Click outside grid
+    if not cell:
         self.sel = None
         self.update()
+        return
+
+    # Case 2: Click occupied cell → break bond
+    if cell.occupied:
+        self.main.break_bond(cell)
+        self.sel = None
+        self.update()
+        return
+
+    # Case 3: CPU mode and not human's turn → ignore click
+    if self.main.mode == "CPU" and not self.main.human_turn:
+        return
+
+    # Case 4: No selection yet → select first cell
+    if not self.sel:
+        self.sel = cell
+        self.main.status.setText("Select adjacent number...")
+        self.update()
+        return
+
+    # Case 5: Clicking same cell → deselect
+    if self.sel == cell:
+        self.sel = None
+        self.main.status.setText("Ready.")
+        self.update()
+        return
+
+    # Case 6: Try connecting two different cells
+    self.main.try_connect(self.sel, cell)
+    self.sel = None
+    self.update()
+
 
     def paintEvent(self, e):
         if not self.board:
@@ -193,3 +212,4 @@ if __name__ == "__main__":
     w = MainWindow()
     w.show()
     sys.exit(app.exec())
+
