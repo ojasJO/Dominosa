@@ -90,7 +90,7 @@ def mousePressEvent(self, e):
         self.update()
         return
 
-    # Case 2: Click occupied cell → break bond
+    # Case 2: Click occupied cell → break bon
     if cell.occupied:
         self.main.break_bond(cell)
         self.sel = None
@@ -155,7 +155,6 @@ def mousePressEvent(self, e):
                 p.drawText(int(cx)-20, int(cy)-20, 40, 40,
                            Qt.AlignmentFlag.AlignCenter, str(cell.value))
 
-
 # ---------- MAIN WINDOW ----------
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -212,4 +211,5 @@ if __name__ == "__main__":
     w = MainWindow()
     w.show()
     sys.exit(app.exec())
+
 
