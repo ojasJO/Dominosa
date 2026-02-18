@@ -126,19 +126,24 @@ class BoardWidget(QWidget):
         self.hint_timer = QTimer(self)
         self.hint_timer.timeout.connect(self.clear_hint)
 
-    def set_victory(self, state):
-        self.victory_mode = state
-        self.repaint()
+   def set_victory(self, value):
+    self.victory_mode = value
+    self.update()  # efficient repaint scheduling
 
-    def show_hint(self, edge):
-        self.hint_edge = edge
-        self.repaint()
-        self.hint_timer.start(2000)
 
-    def clear_hint(self):
-        self.hint_edge = None
-        self.hint_timer.stop()
-        self.repaint()
+def show_hint(self, edge):
+    self.hint_edge = edge
+    self.update()
+
+    # restart hint timer cleanly
+    self.hint_timer.stop()
+    self.hint_timer.start(2000)
+
+
+def clear_hint(self):
+    self.hint_edge = None
+    self.hint_timer.stop()
+    self.update()
 
     def mousePressEvent(self, e):
         if not self.input_enabled or self.victory_mode: return
@@ -548,6 +553,7 @@ if __name__ == "__main__":
     win = MainWindow()
     win.showMaximized()
     sys.exit(app.exec())
+
 
 
 
