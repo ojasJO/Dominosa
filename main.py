@@ -77,9 +77,8 @@ class ProgressBar(QWidget):
         self.progress = 0.0
 
     def set_progress(self, value: float):
-        # Clamp value to valid range [0, 1]
         self.progress = max(0.0, min(1.0, value))
-        self.update()   # more efficient than repaint()
+        self.update() 
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -88,10 +87,8 @@ class ProgressBar(QWidget):
         width = self.width()
         height = self.height()
 
-        # Background
         painter.fillRect(0, 0, width, height, QColor("#E0E0E0"))
 
-        # Foreground progress
         fill_width = int(width * self.progress)
         if fill_width > 0:
             painter.fillRect(0, 0, fill_width, height, QColor("#111111"))
@@ -110,31 +107,30 @@ class BoardWidget(QWidget):
         height = board.rows * self.cell_sz + 4
         self.setFixedSize(width, height)
 
-        # Interaction state
+
         self.selected_node = None
         self.hint_edge = None
         self.victory_mode = False
         self.input_enabled = True
 
-        # Flash feedback state
+
         self.flash_active = False
         self.flash_timer = QTimer(self)
         self.flash_timer.timeout.connect(self.clear_flash)
 
-        # Hint display timer
         self.hint_timer = QTimer(self)
         self.hint_timer.timeout.connect(self.clear_hint)
 
    def set_victory(self, value):
     self.victory_mode = value
-    self.update()  # efficient repaint scheduling
+    self.update() 
 
 
 def show_hint(self, edge):
     self.hint_edge = edge
     self.update()
 
-    # restart hint timer cleanly
+  
     self.hint_timer.stop()
     self.hint_timer.start(2000)
 
@@ -569,6 +565,7 @@ if __name__ == "__main__":
     win = MainWindow()
     win.showMaximized()
     sys.exit(app.exec())
+
 
 
 
