@@ -527,25 +527,37 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.stack)
         self.create_landing()
 
-    def create_landing(self):
-        landing = QWidget()
-        lay = QVBoxLayout(landing)
-        lay.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lay.setSpacing(30)
-        
-        title = QLabel("DOMINOSA"); title.setObjectName("Title")
-        sub = QLabel("ALGORITHMIC STRATEGY ENGINE"); sub.setObjectName("Subtitle")
-        
-        lay.addWidget(title, alignment=Qt.AlignmentFlag.AlignCenter)
-        lay.addWidget(sub, alignment=Qt.AlignmentFlag.AlignCenter)
-        lay.addSpacing(20)
-        
-        btn_solo = QPushButton("SOLO PUZZLE"); btn_solo.clicked.connect(lambda: self.launch("SOLO"))
-        btn_vs = QPushButton("HUMAN VS ALGO"); btn_vs.clicked.connect(lambda: self.launch("VERSUS"))
-        btn_duel = QPushButton("ALGO VS ALGO"); btn_duel.clicked.connect(lambda: self.launch("DUEL"))
-        
-        lay.addWidget(btn_solo); lay.addWidget(btn_vs); lay.addWidget(btn_duel)
-        self.stack.addWidget(landing)
+def create_landing(self):
+
+    container = QWidget()
+    layout = QVBoxLayout()
+    layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    layout.setSpacing(30)
+
+    container.setLayout(layout)
+
+    heading = QLabel("DOMINOSA")
+    heading.setObjectName("Title")
+
+    tagline = QLabel("ALGORITHMIC STRATEGY ENGINE")
+    tagline.setObjectName("Subtitle")
+
+    layout.addWidget(heading, alignment=Qt.AlignmentFlag.AlignCenter)
+    layout.addWidget(tagline, alignment=Qt.AlignmentFlag.AlignCenter)
+    layout.addSpacing(20)
+
+    buttons = {
+        "SOLO PUZZLE": "SOLO",
+        "HUMAN VS ALGO": "VERSUS",
+        "ALGO VS ALGO": "DUEL"
+    }
+
+    for text, mode in buttons.items():
+        btn = QPushButton(text)
+        btn.clicked.connect(lambda _, m=mode: self.launch(m))
+        layout.addWidget(btn)
+
+    self.stack.addWidget(container)
 
     def launch(self, mode):
         game = GameScreen(self, mode)
@@ -565,6 +577,7 @@ if __name__ == "__main__":
     win = MainWindow()
     win.showMaximized()
     sys.exit(app.exec())
+
 
 
 
