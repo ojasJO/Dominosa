@@ -9,7 +9,6 @@ from board import DominosaBoard
 from solver import AI_Engine
 from avatars import AvatarWidget
 from structures import BondState
-
 GRID_HARD = [
     [5, 2, 4, 1, 6, 2, 1, 3], 
     [5, 5, 4, 3, 6, 2, 4, 6],
@@ -384,18 +383,21 @@ class GameScreen(QWidget):
         cols_lay.addLayout(right_col, 1)
         main_lay.addLayout(cols_lay)
 
-    def get_hint(self):
-        strat = self.combo_hint.currentText()
-        self.lbl_status.setText("ANALYZING...")
-        QApplication.processEvents()
-        
-        move = self.engine_1.get_hint_move(strat)
-        if move:
-            self.lbl_status.setText("HINT FOUND")
-            self.board_wid.show_hint(move)
-            self.status_timer.start(2000)
-        else:
-            self.lbl_status.setText("PUZZLE BLOCKED (Backtrack Required)")
+def get_hint(self):
+
+    strategy = self.combo_hint.currentText()
+    self.lbl_status.setText("ANALYZING...")
+    QApplication.processEvents()
+
+    hint_move = self.engine_1.get_hint_move(strategy)
+
+    if not hint_move:
+        self.lbl_status.setText("PUZZLE BLOCKED (Backtrack Required)")
+        return
+
+    self.lbl_status.setText("HINT FOUND")
+    self.board_wid.show_hint(hint_move)
+    self.status_timer.start(2000)
 
     def update_progress(self):
         val = self.board.get_progress()
@@ -553,6 +555,7 @@ if __name__ == "__main__":
     win = MainWindow()
     win.showMaximized()
     sys.exit(app.exec())
+
 
 
 
