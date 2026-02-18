@@ -415,23 +415,29 @@ def get_hint(self):
                 self.current_turn = 2
                 self.update_turn_state()
 
-    def start_duel(self):
-        self.btn_start.setEnabled(False)
-        self.combo_algo_1.setEnabled(False)
-        self.combo_algo_2.setEnabled(False)
-        self.current_turn = 1
-        self.run_ai_turn()
+def start_duel(self):
 
-    def update_turn_state(self):
-        if self.current_turn == 1:
-            self.lbl_status.setText("PLAYER 1 TURN")
-            self.av1.set_state("THINKING"); self.av2.set_state("IDLE")
-            self.board_wid.input_enabled = (self.mode != "DUEL")
-        else:
-            self.lbl_status.setText("PLAYER 2 TURN")
-            self.av1.set_state("IDLE"); self.av2.set_state("THINKING")
-            self.board_wid.input_enabled = False
-            self.run_ai_turn()
+    for widget in (self.btn_start, self.combo_algo_1, self.combo_algo_2):
+        widget.setEnabled(False)
+
+    self.current_turn = 1
+    self.update_turn_state()
+
+
+def update_turn_state(self):
+
+    player_one = (self.current_turn == 1)
+
+    status_text = "PLAYER 1 TURN" if player_one else "PLAYER 2 TURN"
+    self.lbl_status.setText(status_text)
+
+    self.av1.set_state("THINKING" if player_one else "IDLE")
+    self.av2.set_state("IDLE" if player_one else "THINKING")
+
+    self.board_wid.input_enabled = player_one and (self.mode != "DUEL")
+
+    if not player_one:
+        self.run_ai_turn()
 
     def run_ai_turn(self):
         if self.game_over: return
@@ -555,6 +561,7 @@ if __name__ == "__main__":
     win = MainWindow()
     win.showMaximized()
     sys.exit(app.exec())
+
 
 
 
