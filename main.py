@@ -98,27 +98,33 @@ class ProgressBar(QWidget):
             painter.fillRect(0, 0, fill_width, height, QColor("#111111"))
 
 class BoardWidget(QWidget):
-    move_made = pyqtSignal(object) 
+    move_made = pyqtSignal(object)
     board_changed = pyqtSignal()
-    
+
     def __init__(self, board):
         super().__init__()
+
         self.board = board
         self.cell_sz = 60
-        self.setFixedSize(board.cols * self.cell_sz + 4, board.rows * self.cell_sz + 4)
-        
+
+        width = board.cols * self.cell_sz + 4
+        height = board.rows * self.cell_sz + 4
+        self.setFixedSize(width, height)
+
+        # Interaction state
         self.selected_node = None
         self.hint_edge = None
         self.victory_mode = False
-        
-        self.flash_timer = QTimer()
-        self.flash_timer.timeout.connect(self.clear_flash)
+        self.input_enabled = True
+
+        # Flash feedback state
         self.flash_active = False
-        
-        self.hint_timer = QTimer()
+        self.flash_timer = QTimer(self)
+        self.flash_timer.timeout.connect(self.clear_flash)
+
+        # Hint display timer
+        self.hint_timer = QTimer(self)
         self.hint_timer.timeout.connect(self.clear_hint)
-        
-        self.input_enabled = True 
 
     def set_victory(self, state):
         self.victory_mode = state
@@ -542,5 +548,6 @@ if __name__ == "__main__":
     win = MainWindow()
     win.showMaximized()
     sys.exit(app.exec())
+
 
 
