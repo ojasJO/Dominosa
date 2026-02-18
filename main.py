@@ -284,100 +284,135 @@ class GameScreen(QWidget):
             self.worker.wait()
         if self.mode == "DUEL": self.timer_duel.stop()
 
-    def init_ui(self):
-        main_lay = QVBoxLayout(self)
-        main_lay.setContentsMargins(0, 0, 0, 0)
-        
-        self.prog_bar = ProgressBar()
-        main_lay.addWidget(self.prog_bar)
-        
-        top_ctrl = QHBoxLayout()
-        top_ctrl.setContentsMargins(30, 15, 30, 15)
-        
-        btn_back = QPushButton("EXIT SESSION")
-        btn_back.clicked.connect(lambda: self.parent.switch_to_landing())
-        
-        self.lbl_status = QLabel("")
-        self.lbl_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lbl_status.setFont(QFont("Segoe UI", 12, QFont.Weight.DemiBold))
-        
-        top_ctrl.addWidget(btn_back)
-        top_ctrl.addStretch()
-        top_ctrl.addWidget(self.lbl_status)
-        top_ctrl.addStretch()
-        dummy = QPushButton(""); dummy.setFixedWidth(140); dummy.setVisible(False)
-        top_ctrl.addWidget(dummy)
-        main_lay.addLayout(top_ctrl)
-        
-        cols_lay = QHBoxLayout()
-        cols_lay.setContentsMargins(50, 20, 50, 50)
-        
-        self.av1 = AvatarWidget("DYNAMIC_PROGRAMMING", "#222222")
-        self.av2 = AvatarWidget("DYNAMIC_PROGRAMMING", "#888888")
-        if self.mode == "SOLO": 
-            self.av1.setVisible(False)
-            self.av2.setVisible(False)
-        
-        left_col = QVBoxLayout()
-        if self.mode != "SOLO":
-            lbl_p1 = QLabel("PLAYER 1" if self.mode == "VERSUS" else "ALGORITHM A")
-            lbl_p1.setObjectName("Subtitle")
-            left_col.addWidget(lbl_p1, alignment=Qt.AlignmentFlag.AlignHCenter)
-            if self.mode == "DUEL":
-                self.combo_algo_1 = QComboBox()
-                self.combo_algo_1.addItems(STRATEGIES)
-                self.combo_algo_1.currentTextChanged.connect(lambda s: self.av1.set_strategy(s, "#222222"))
-                left_col.addWidget(self.combo_algo_1)
-        
-        if self.mode == "SOLO":
-            self.lbl_status.setText("YOUR TURN")
-            hint_box = QVBoxLayout()
-            lbl_help = QLabel("STRATEGY ENGINE"); lbl_help.setObjectName("Subtitle")
-            hint_box.addWidget(lbl_help, alignment=Qt.AlignmentFlag.AlignHCenter)
-            self.combo_hint = QComboBox(); self.combo_hint.addItems(STRATEGIES)
-            hint_box.addWidget(self.combo_hint)
-            btn_hint = QPushButton("GET HINT"); btn_hint.setObjectName("ActionBtn")
-            btn_hint.clicked.connect(self.get_hint)
-            hint_box.addWidget(btn_hint)
-            left_col.addLayout(hint_box)
-            
-        left_col.addStretch()
-        cols_lay.addLayout(left_col, 1)
-        
-        center_col = QVBoxLayout()
-        if self.mode != "SOLO":
-            avatars_lay = QHBoxLayout()
-            avatars_lay.addStretch()
-            avatars_lay.addWidget(self.av1)
-            avatars_lay.addSpacing(60)
-            avatars_lay.addWidget(self.av2)
-            avatars_lay.addStretch()
-            center_col.addLayout(avatars_lay)
-            center_col.addSpacing(20)
+def init_ui(self):
 
-        self.board_wid = BoardWidget(self.board)
-        self.board_wid.move_made.connect(self.handle_human_move)
-        self.board_wid.board_changed.connect(self.update_progress)
-        center_col.addWidget(self.board_wid, alignment=Qt.AlignmentFlag.AlignCenter)
-        cols_lay.addLayout(center_col, 3)
-        
-        right_col = QVBoxLayout()
-        if self.mode != "SOLO":
-            lbl_p2 = QLabel("PLAYER 2 (CPU)" if self.mode == "VERSUS" else "ALGORITHM B")
-            lbl_p2.setObjectName("Subtitle")
-            right_col.addWidget(lbl_p2, alignment=Qt.AlignmentFlag.AlignHCenter)
-            self.combo_algo_2 = QComboBox(); self.combo_algo_2.addItems(STRATEGIES)
-            self.combo_algo_2.currentTextChanged.connect(lambda s: self.av2.set_strategy(s, "#888888"))
-            right_col.addWidget(self.combo_algo_2)
-            if self.mode == "DUEL":
-                right_col.addSpacing(30)
-                self.btn_start = QPushButton("START DUEL"); self.btn_start.setObjectName("ActionBtn")
-                self.btn_start.clicked.connect(self.start_duel)
-                right_col.addWidget(self.btn_start)
-        
-        right_col.addStretch()
-        cols_lay.addLayout(right_col, 1)
-        main_lay.addLayout(cols_lay)
+    root_layout = QVBoxLayout()
+    root_layout.setContentsMargins(0, 0, 0, 0)
+    self.setLayout(root_layout)
+
+    self.prog_bar = ProgressBar()
+    root_layout.addWidget(self.prog_bar)
+
+    top_bar = QHBoxLayout()
+    top_bar.setContentsMargins(30, 15, 30, 15)
+
+    exit_btn = QPushButton("EXIT SESSION")
+    exit_btn.clicked.connect(lambda: self.parent.switch_to_landing())
+
+    self.lbl_status = QLabel("")
+    self.lbl_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    self.lbl_status.setFont(QFont("Segoe UI", 12, QFont.Weight.DemiBold))
+
+    spacer_btn = QPushButton()
+    spacer_btn.setFixedWidth(140)
+    spacer_btn.setVisible(False)
+
+    top_bar.addWidget(exit_btn)
+    top_bar.addStretch()
+    top_bar.addWidget(self.lbl_status)
+    top_bar.addStretch()
+    top_bar.addWidget(spacer_btn)
+
+    root_layout.addLayout(top_bar)
+
+    content_layout = QHBoxLayout()
+    content_layout.setContentsMargins(50, 20, 50, 50)
+
+    self.av1 = AvatarWidget("DYNAMIC_PROGRAMMING", "#222222")
+    self.av2 = AvatarWidget("DYNAMIC_PROGRAMMING", "#888888")
+
+    if self.mode == "SOLO":
+        self.av1.hide()
+        self.av2.hide()
+
+    left_section = QVBoxLayout()
+
+    if self.mode != "SOLO":
+        label_text = "PLAYER 1" if self.mode == "VERSUS" else "ALGORITHM A"
+        player1_label = QLabel(label_text)
+        player1_label.setObjectName("Subtitle")
+        left_section.addWidget(player1_label, alignment=Qt.AlignmentFlag.AlignHCenter)
+
+        if self.mode == "DUEL":
+            self.combo_algo_1 = QComboBox()
+            self.combo_algo_1.addItems(STRATEGIES)
+            self.combo_algo_1.currentTextChanged.connect(
+                lambda s: self.av1.set_strategy(s, "#222222")
+            )
+            left_section.addWidget(self.combo_algo_1)
+
+    if self.mode == "SOLO":
+        self.lbl_status.setText("YOUR TURN")
+
+        hint_layout = QVBoxLayout()
+        hint_title = QLabel("STRATEGY ENGINE")
+        hint_title.setObjectName("Subtitle")
+
+        self.combo_hint = QComboBox()
+        self.combo_hint.addItems(STRATEGIES)
+
+        hint_btn = QPushButton("GET HINT")
+        hint_btn.setObjectName("ActionBtn")
+        hint_btn.clicked.connect(self.get_hint)
+
+        hint_layout.addWidget(hint_title, alignment=Qt.AlignmentFlag.AlignHCenter)
+        hint_layout.addWidget(self.combo_hint)
+        hint_layout.addWidget(hint_btn)
+
+        left_section.addLayout(hint_layout)
+
+    left_section.addStretch()
+    content_layout.addLayout(left_section, 1)
+
+    center_section = QVBoxLayout()
+
+    if self.mode != "SOLO":
+        avatar_row = QHBoxLayout()
+        avatar_row.addStretch()
+        avatar_row.addWidget(self.av1)
+        avatar_row.addSpacing(60)
+        avatar_row.addWidget(self.av2)
+        avatar_row.addStretch()
+
+        center_section.addLayout(avatar_row)
+        center_section.addSpacing(20)
+
+    self.board_wid = BoardWidget(self.board)
+    self.board_wid.move_made.connect(self.handle_human_move)
+    self.board_wid.board_changed.connect(self.update_progress)
+
+    center_section.addWidget(self.board_wid, alignment=Qt.AlignmentFlag.AlignCenter)
+    content_layout.addLayout(center_section, 3)
+
+    right_section = QVBoxLayout()
+
+    if self.mode != "SOLO":
+        label_text = "PLAYER 2 (CPU)" if self.mode == "VERSUS" else "ALGORITHM B"
+        player2_label = QLabel(label_text)
+        player2_label.setObjectName("Subtitle")
+
+        self.combo_algo_2 = QComboBox()
+        self.combo_algo_2.addItems(STRATEGIES)
+        self.combo_algo_2.currentTextChanged.connect(
+            lambda s: self.av2.set_strategy(s, "#888888")
+        )
+
+        right_section.addWidget(player2_label, alignment=Qt.AlignmentFlag.AlignHCenter)
+        right_section.addWidget(self.combo_algo_2)
+
+        if self.mode == "DUEL":
+            right_section.addSpacing(30)
+
+            self.btn_start = QPushButton("START DUEL")
+            self.btn_start.setObjectName("ActionBtn")
+            self.btn_start.clicked.connect(self.start_duel)
+
+            right_section.addWidget(self.btn_start)
+
+    right_section.addStretch()
+    content_layout.addLayout(right_section, 1)
+
+    root_layout.addLayout(content_layout)
 
 def get_hint(self):
 
@@ -586,6 +621,7 @@ if __name__ == "__main__":
     win = MainWindow()
     win.showMaximized()
     sys.exit(app.exec())
+
 
 
 
