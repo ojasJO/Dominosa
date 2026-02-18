@@ -489,29 +489,37 @@ def update_turn_state(self):
             self.lbl_status.setText(f"VICTORY: {winner_name} WINS")
             self.board_wid.set_victory(True)
 
-    def check_win_condition(self):
-        if self.mode == "SOLO":
-            if self.board.get_progress() >= 1.0:
-                self.lbl_status.setText("PUZZLE SOLVED")
-                self.game_over = True
-                self.board_wid.set_victory(True)
-        else:
-            if not self.board.has_valid_moves():
-                self.game_over = True
-                self.board_wid.set_victory(True)
-                if self.mode == "DUEL": self.timer_duel.stop()
+def check_win_condition(self):
 
-                winner_name = ""
-                if self.current_turn == 1:
-                    winner_name = self.combo_algo_2.currentText() if self.mode != "SOLO" else "CPU"
-                    self.av1.set_state("DEFEAT")
-                    self.av2.set_state("VICTORY")
-                else:
-                    winner_name = self.combo_algo_1.currentText() if self.mode == "DUEL" else "PLAYER 1"
-                    self.av2.set_state("DEFEAT")
-                    self.av1.set_state("VICTORY")
-                
-                self.lbl_status.setText(f"VICTORY: {winner_name} WINS")
+    if self.mode == "SOLO":
+        if self.board.get_progress() >= 1.0:
+            self.game_over = True
+            self.lbl_status.setText("PUZZLE SOLVED")
+            self.board_wid.set_victory(True)
+        return
+
+    if self.board.has_valid_moves():
+        return
+
+    self.game_over = True
+    self.board_wid.set_victory(True)
+
+    if self.mode == "DUEL":
+        self.timer_duel.stop()
+
+    player_one_turn = (self.current_turn == 1)
+
+    if player_one_turn:
+        winner = self.combo_algo_2.currentText() if self.mode != "SOLO" else "CPU"
+        self.av1.set_state("DEFEAT")
+        self.av2.set_state("VICTORY")
+    else:
+        winner = self.combo_algo_1.currentText() if self.mode == "DUEL" else "PLAYER 1"
+        self.av2.set_state("DEFEAT")
+        self.av1.set_state("VICTORY")
+
+    self.lbl_status.setText(f"VICTORY: {winner} WINS")
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -561,6 +569,7 @@ if __name__ == "__main__":
     win = MainWindow()
     win.showMaximized()
     sys.exit(app.exec())
+
 
 
 
