@@ -559,24 +559,34 @@ def create_landing(self):
 
     self.stack.addWidget(container)
 
-    def launch(self, mode):
-        game = GameScreen(self, mode)
-        self.stack.addWidget(game)
-        self.stack.setCurrentWidget(game)
+def launch(self, mode):
 
-    def switch_to_landing(self):
-        current = self.stack.currentWidget()
-        if isinstance(current, GameScreen):
-            current.cleanup()
-            self.stack.removeWidget(current)
-            current.deleteLater()
-        self.stack.setCurrentIndex(0)
+    new_screen = GameScreen(parent=self, mode=mode)
+    stack_ref = self.stack
+
+    stack_ref.addWidget(new_screen)
+    stack_ref.setCurrentWidget(new_screen)
+
+
+def switch_to_landing(self):
+
+    stack_ref = self.stack
+    active_widget = stack_ref.currentWidget()
+
+    if isinstance(active_widget, GameScreen):
+        active_widget.cleanup()
+        stack_ref.removeWidget(active_widget)
+        active_widget.deleteLater()
+
+    stack_ref.setCurrentIndex(0)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     win = MainWindow()
     win.showMaximized()
     sys.exit(app.exec())
+
 
 
 
