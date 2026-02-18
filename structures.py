@@ -1,46 +1,37 @@
 from dataclasses import dataclass, field
-from enum import Enum, auto
+from enum import Enum
 from typing import List, Tuple
 
 class BondState(Enum):
-    UNDECIDED = auto()
-    BLOCKED = auto()
-    CONFIRMED = auto()
+    UNDECIDED = 0
+    CONFIRMED = 1
+    BLOCKED = 2
 
-class StrategyLevel(Enum):
-    LEVEL_1_BASIC = "Uniqueness (Basic)"
-    LEVEL_2_STANDARD = "Isolation (Standard)"
-    LEVEL_3_ADVANCED = "Duplicate Check (Advanced)"
-    LEVEL_4_ALL = "Full Power (All Strategies)"
-
-@dataclass
+@dataclass(unsafe_hash=True)
 class CellNode:
     r: int
     c: int
     value: int
-    neighbors: List['CellNode'] = field(default_factory=list)
-    occupied: bool = False
+    neighbors: List['CellNode'] = field(default_factory=list, hash=False, compare=False)
+    edges: List['EdgeBond'] = field(default_factory=list, hash=False, compare=False)
+    occupied: bool = field(default=False, compare=False)
+    owner_id: int = field(default=0, compare=False)
 
     def __repr__(self):
-        return f"{self.value}"
+        return f"({self.r},{self.c}|{self.value})"
 
 @dataclass
 class EdgeBond:
     node_a: CellNode
     node_b: CellNode
     state: BondState = BondState.UNDECIDED
-    
+    owner_id: int = 0 
+
     def get_pair_id(self) -> Tuple[int, int]:
-    
-        v1 = int(self.node_a.value)
-        v2 = int(self.node_b.value)
+        return tuple(sorted((self.node_a.value, self.node_b.value)))
 
-
-        if v1 > v2:
-            return (v2, v1)
-        else:
-            return (v1, v2)
+    def __lt__(self, other):
+        return self.get_pair_id() < other.get_pair_id()
 
     def __repr__(self):
-        v1, v2 = self.get_pair_id()
-        return f"[{v1}|{v2}]"
+        return f"Edge[{self.node_a}<->{self.node_b}]"
