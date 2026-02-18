@@ -46,6 +46,104 @@ class DominosaBoard:
         node_a.neighbors.append(node_b)
         node_b.neighbors.append(node_a)
 
+    # to return edge opject between two vertices
+    def get_edge(self, n1: CellNode, n2: CellNode):
+    for e in n1.edges:
+        if (e.node_a == n1 and e.node_b == n2) or \
+           (e.node_a == n2 and e.node_b == n1):
+            return e
+    return None
+
+
+    # validator 
+    def validate_move(self, node_a: CellNode, node_b: CellNode) -> bool:
+    
+    if node_b not in node_a.neighbors:
+        return False
+
+    if node_a.occupied or node_b.occupied:
+        return False
+
+    pair = tuple(sorted((node_a.value, node_b.value)))
+
+    if pair not in self.available_dominoes:
+        return False
+
+    return True
+
+    # placement logic 
+    def confirm_edge(self, edge: EdgeBond, owner_id: int = 1) -> bool:
+    """Place a domino."""
+    if edge.state == BondState.BLOCKED:
+        return False
+
+    pair = edge.get_pair_id()
+
+    if pair not in self.available_dominoes:
+        return False
+
+    # Commit state
+    edge.state = BondState.CONFIRMED
+    edge.owner_id = owner_id
+
+    edge.node_a.occupied = True
+    edge.node_b.occupied = True
+    edge.node_a.owner_id = owner_id
+    edge.node_b.owner_id = owner_id
+
+    self.available_dominoes.remove(pair)
+    self.placed_dominoes.add(pair)
+
+    self._update_blocked_states()
+    return True
+
+    # removal logic 
+
+    def remove_edge(self, edge: EdgeBond):
+    """Undo a placed domino."""
+    if edge.state != BondState.CONFIRMED:
+        return
+
+    pair = edge.get_pair_id()
+
+    edge.state = BondState.UNDECIDED
+    edge.owner_id = 0
+
+    edge.node_a.occupied = False
+    edge.node_b.occupied = False
+    edge.node_a.owner_id = 0
+    edge.node_b.owner_id = 0
+
+    self.placed_dominoes.remove(pair)
+    self.available_dominoes.add(pair)
+
+    self._update_blocked_states()
+
+    # blocked state recaulcualtion 
+
+    def _update_blocked_states(self):
+    """Recalculate blocked edges."""
+    for e in self.edges:
+        if e.state != BondState.CONFIRMED:
+            e.state = BondState.UNDECIDED
+
+    for e in self.edges:
+        if e.state == BondState.UNDECIDED:
+            if e.node_a.occupied or e.node_b.occupied:
+                e.state = BondState.BLOCKED
+# game over check valididty 
+    def has_valid_moves(self) -> bool:
+    for edge in self.edges:
+        if (edge.state == BondState.UNDECIDED and
+            not edge.node_a.occupied and
+            not edge.node_b.occupied and
+            edge.get_pair_id() in self.available_dominoes):
+            return True
+    return False
+
+
+
+
     def _init_domino_set(self):
 
         if not self.cells:
