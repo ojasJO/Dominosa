@@ -66,23 +66,36 @@ class StrategyWorker(QThread):
     def stop(self):
         self._is_running = False
 
+from PyQt6.QtWidgets import QWidget
+from PyQt6.QtGui import QPainter, QColor
+from PyQt6.QtCore import Qt
+
+
 class ProgressBar(QWidget):
     def __init__(self):
         super().__init__()
         self.setFixedHeight(6)
         self.progress = 0.0
 
-    def set_progress(self, val):
-        self.progress = val
-        self.repaint()
+    def set_progress(self, value: float):
+        # Clamp value to valid range [0, 1]
+        self.progress = max(0.0, min(1.0, value))
+        self.update()   # more efficient than repaint()
 
-    def paintEvent(self, e):
-        qp = QPainter(self)
-        qp.setRenderHint(QPainter.RenderHint.Antialiasing)
-        w, h = self.width(), self.height()
-        qp.fillRect(0, 0, w, h, QColor("#E0E0E0"))
-        fill_w = int(w * self.progress)
-        qp.fillRect(0, 0, fill_w, h, QColor("#111111"))
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        width = self.width()
+        height = self.height()
+
+        # Background
+        painter.fillRect(0, 0, width, height, QColor("#E0E0E0"))
+
+        # Foreground progress
+        fill_width = int(width * self.progress)
+        if fill_width > 0:
+            painter.fillRect(0, 0, fill_width, height, QColor("#111111"))
 
 class BoardWidget(QWidget):
     move_made = pyqtSignal(object) 
@@ -529,4 +542,5 @@ if __name__ == "__main__":
     win = MainWindow()
     win.showMaximized()
     sys.exit(app.exec())
+
 
