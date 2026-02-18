@@ -1,14 +1,3 @@
-"""
-main.py
--------
-The Final Application (v5.2).
-Features:
-- Guaranteed Avatar Emotions (Victory/Defeat) on Game Over.
-- "Cartoon" Expressions (Smiles/Frowns).
-- Thread-Safe Architecture.
-- Premium UI.
-"""
-
 import sys
 import time
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
@@ -540,3 +529,4 @@ if __name__ == "__main__":
     win = MainWindow()
     win.showMaximized()
     sys.exit(app.exec())
+
