@@ -9,6 +9,7 @@ from board import DominosaBoard
 from solver import AI_Engine
 from avatars import AvatarWidget
 from structures import BondState
+
 GRID_HARD = [
     [5, 2, 4, 1, 6, 2, 1, 3], 
     [5, 5, 4, 3, 6, 2, 4, 6],
@@ -65,80 +66,60 @@ class StrategyWorker(QThread):
     def stop(self):
         self._is_running = False
 
-from PyQt6.QtWidgets import QWidget
-from PyQt6.QtGui import QPainter, QColor
-from PyQt6.QtCore import Qt
-
-
 class ProgressBar(QWidget):
     def __init__(self):
         super().__init__()
         self.setFixedHeight(6)
         self.progress = 0.0
 
-    def set_progress(self, value: float):
-        self.progress = max(0.0, min(1.0, value))
-        self.update() 
+    def set_progress(self, val):
+        self.progress = val
+        self.repaint()
 
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        width = self.width()
-        height = self.height()
-
-        painter.fillRect(0, 0, width, height, QColor("#E0E0E0"))
-
-        fill_width = int(width * self.progress)
-        if fill_width > 0:
-            painter.fillRect(0, 0, fill_width, height, QColor("#111111"))
+    def paintEvent(self, e):
+        qp = QPainter(self)
+        qp.setRenderHint(QPainter.RenderHint.Antialiasing)
+        w, h = self.width(), self.height()
+        qp.fillRect(0, 0, w, h, QColor("#E0E0E0"))
+        fill_w = int(w * self.progress)
+        qp.fillRect(0, 0, fill_w, h, QColor("#111111"))
 
 class BoardWidget(QWidget):
-    move_made = pyqtSignal(object)
+    move_made = pyqtSignal(object) 
     board_changed = pyqtSignal()
-
+    
     def __init__(self, board):
         super().__init__()
-
         self.board = board
         self.cell_sz = 60
-
-        width = board.cols * self.cell_sz + 4
-        height = board.rows * self.cell_sz + 4
-        self.setFixedSize(width, height)
-
-
+        self.setFixedSize(board.cols * self.cell_sz + 4, board.rows * self.cell_sz + 4)
+        
         self.selected_node = None
         self.hint_edge = None
         self.victory_mode = False
-        self.input_enabled = True
-
-
-        self.flash_active = False
-        self.flash_timer = QTimer(self)
+        
+        self.flash_timer = QTimer()
         self.flash_timer.timeout.connect(self.clear_flash)
-
-        self.hint_timer = QTimer(self)
+        self.flash_active = False
+        
+        self.hint_timer = QTimer()
         self.hint_timer.timeout.connect(self.clear_hint)
+        
+        self.input_enabled = True 
 
-   def set_victory(self, value):
-    self.victory_mode = value
-    self.update() 
+    def set_victory(self, state):
+        self.victory_mode = state
+        self.repaint()
 
+    def show_hint(self, edge):
+        self.hint_edge = edge
+        self.repaint()
+        self.hint_timer.start(2000)
 
-def show_hint(self, edge):
-    self.hint_edge = edge
-    self.update()
-
-  
-    self.hint_timer.stop()
-    self.hint_timer.start(2000)
-
-
-def clear_hint(self):
-    self.hint_edge = None
-    self.hint_timer.stop()
-    self.update()
+    def clear_hint(self):
+        self.hint_edge = None
+        self.hint_timer.stop()
+        self.repaint()
 
     def mousePressEvent(self, e):
         if not self.input_enabled or self.victory_mode: return
@@ -284,151 +265,113 @@ class GameScreen(QWidget):
             self.worker.wait()
         if self.mode == "DUEL": self.timer_duel.stop()
 
-def init_ui(self):
+    def init_ui(self):
+        main_lay = QVBoxLayout(self)
+        main_lay.setContentsMargins(0, 0, 0, 0)
+        
+        self.prog_bar = ProgressBar()
+        main_lay.addWidget(self.prog_bar)
+        
+        top_ctrl = QHBoxLayout()
+        top_ctrl.setContentsMargins(30, 15, 30, 15)
+        
+        btn_back = QPushButton("EXIT SESSION")
+        btn_back.clicked.connect(lambda: self.parent.switch_to_landing())
+        
+        self.lbl_status = QLabel("")
+        self.lbl_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_status.setFont(QFont("Segoe UI", 12, QFont.Weight.DemiBold))
+        
+        top_ctrl.addWidget(btn_back)
+        top_ctrl.addStretch()
+        top_ctrl.addWidget(self.lbl_status)
+        top_ctrl.addStretch()
+        dummy = QPushButton(""); dummy.setFixedWidth(140); dummy.setVisible(False)
+        top_ctrl.addWidget(dummy)
+        main_lay.addLayout(top_ctrl)
+        
+        cols_lay = QHBoxLayout()
+        cols_lay.setContentsMargins(50, 20, 50, 50)
+        
+        self.av1 = AvatarWidget("DYNAMIC_PROGRAMMING", "#222222")
+        self.av2 = AvatarWidget("DYNAMIC_PROGRAMMING", "#888888")
+        if self.mode == "SOLO": 
+            self.av1.setVisible(False)
+            self.av2.setVisible(False)
+        
+        left_col = QVBoxLayout()
+        if self.mode != "SOLO":
+            lbl_p1 = QLabel("PLAYER 1" if self.mode == "VERSUS" else "ALGORITHM A")
+            lbl_p1.setObjectName("Subtitle")
+            left_col.addWidget(lbl_p1, alignment=Qt.AlignmentFlag.AlignHCenter)
+            if self.mode == "DUEL":
+                self.combo_algo_1 = QComboBox()
+                self.combo_algo_1.addItems(STRATEGIES)
+                self.combo_algo_1.currentTextChanged.connect(lambda s: self.av1.set_strategy(s, "#222222"))
+                left_col.addWidget(self.combo_algo_1)
+        
+        if self.mode == "SOLO":
+            self.lbl_status.setText("YOUR TURN")
+            hint_box = QVBoxLayout()
+            lbl_help = QLabel("STRATEGY ENGINE"); lbl_help.setObjectName("Subtitle")
+            hint_box.addWidget(lbl_help, alignment=Qt.AlignmentFlag.AlignHCenter)
+            self.combo_hint = QComboBox(); self.combo_hint.addItems(STRATEGIES)
+            hint_box.addWidget(self.combo_hint)
+            btn_hint = QPushButton("GET HINT"); btn_hint.setObjectName("ActionBtn")
+            btn_hint.clicked.connect(self.get_hint)
+            hint_box.addWidget(btn_hint)
+            left_col.addLayout(hint_box)
+            
+        left_col.addStretch()
+        cols_lay.addLayout(left_col, 1)
+        
+        center_col = QVBoxLayout()
+        if self.mode != "SOLO":
+            avatars_lay = QHBoxLayout()
+            avatars_lay.addStretch()
+            avatars_lay.addWidget(self.av1)
+            avatars_lay.addSpacing(60)
+            avatars_lay.addWidget(self.av2)
+            avatars_lay.addStretch()
+            center_col.addLayout(avatars_lay)
+            center_col.addSpacing(20)
 
-    root_layout = QVBoxLayout()
-    root_layout.setContentsMargins(0, 0, 0, 0)
-    self.setLayout(root_layout)
+        self.board_wid = BoardWidget(self.board)
+        self.board_wid.move_made.connect(self.handle_human_move)
+        self.board_wid.board_changed.connect(self.update_progress)
+        center_col.addWidget(self.board_wid, alignment=Qt.AlignmentFlag.AlignCenter)
+        cols_lay.addLayout(center_col, 3)
+        
+        right_col = QVBoxLayout()
+        if self.mode != "SOLO":
+            lbl_p2 = QLabel("PLAYER 2 (CPU)" if self.mode == "VERSUS" else "ALGORITHM B")
+            lbl_p2.setObjectName("Subtitle")
+            right_col.addWidget(lbl_p2, alignment=Qt.AlignmentFlag.AlignHCenter)
+            self.combo_algo_2 = QComboBox(); self.combo_algo_2.addItems(STRATEGIES)
+            self.combo_algo_2.currentTextChanged.connect(lambda s: self.av2.set_strategy(s, "#888888"))
+            right_col.addWidget(self.combo_algo_2)
+            if self.mode == "DUEL":
+                right_col.addSpacing(30)
+                self.btn_start = QPushButton("START DUEL"); self.btn_start.setObjectName("ActionBtn")
+                self.btn_start.clicked.connect(self.start_duel)
+                right_col.addWidget(self.btn_start)
+        
+        right_col.addStretch()
+        cols_lay.addLayout(right_col, 1)
+        main_lay.addLayout(cols_lay)
 
-    self.prog_bar = ProgressBar()
-    root_layout.addWidget(self.prog_bar)
-
-    top_bar = QHBoxLayout()
-    top_bar.setContentsMargins(30, 15, 30, 15)
-
-    exit_btn = QPushButton("EXIT SESSION")
-    exit_btn.clicked.connect(lambda: self.parent.switch_to_landing())
-
-    self.lbl_status = QLabel("")
-    self.lbl_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    self.lbl_status.setFont(QFont("Segoe UI", 12, QFont.Weight.DemiBold))
-
-    spacer_btn = QPushButton()
-    spacer_btn.setFixedWidth(140)
-    spacer_btn.setVisible(False)
-
-    top_bar.addWidget(exit_btn)
-    top_bar.addStretch()
-    top_bar.addWidget(self.lbl_status)
-    top_bar.addStretch()
-    top_bar.addWidget(spacer_btn)
-
-    root_layout.addLayout(top_bar)
-
-    content_layout = QHBoxLayout()
-    content_layout.setContentsMargins(50, 20, 50, 50)
-
-    self.av1 = AvatarWidget("DYNAMIC_PROGRAMMING", "#222222")
-    self.av2 = AvatarWidget("DYNAMIC_PROGRAMMING", "#888888")
-
-    if self.mode == "SOLO":
-        self.av1.hide()
-        self.av2.hide()
-
-    left_section = QVBoxLayout()
-
-    if self.mode != "SOLO":
-        label_text = "PLAYER 1" if self.mode == "VERSUS" else "ALGORITHM A"
-        player1_label = QLabel(label_text)
-        player1_label.setObjectName("Subtitle")
-        left_section.addWidget(player1_label, alignment=Qt.AlignmentFlag.AlignHCenter)
-
-        if self.mode == "DUEL":
-            self.combo_algo_1 = QComboBox()
-            self.combo_algo_1.addItems(STRATEGIES)
-            self.combo_algo_1.currentTextChanged.connect(
-                lambda s: self.av1.set_strategy(s, "#222222")
-            )
-            left_section.addWidget(self.combo_algo_1)
-
-    if self.mode == "SOLO":
-        self.lbl_status.setText("YOUR TURN")
-
-        hint_layout = QVBoxLayout()
-        hint_title = QLabel("STRATEGY ENGINE")
-        hint_title.setObjectName("Subtitle")
-
-        self.combo_hint = QComboBox()
-        self.combo_hint.addItems(STRATEGIES)
-
-        hint_btn = QPushButton("GET HINT")
-        hint_btn.setObjectName("ActionBtn")
-        hint_btn.clicked.connect(self.get_hint)
-
-        hint_layout.addWidget(hint_title, alignment=Qt.AlignmentFlag.AlignHCenter)
-        hint_layout.addWidget(self.combo_hint)
-        hint_layout.addWidget(hint_btn)
-
-        left_section.addLayout(hint_layout)
-
-    left_section.addStretch()
-    content_layout.addLayout(left_section, 1)
-
-    center_section = QVBoxLayout()
-
-    if self.mode != "SOLO":
-        avatar_row = QHBoxLayout()
-        avatar_row.addStretch()
-        avatar_row.addWidget(self.av1)
-        avatar_row.addSpacing(60)
-        avatar_row.addWidget(self.av2)
-        avatar_row.addStretch()
-
-        center_section.addLayout(avatar_row)
-        center_section.addSpacing(20)
-
-    self.board_wid = BoardWidget(self.board)
-    self.board_wid.move_made.connect(self.handle_human_move)
-    self.board_wid.board_changed.connect(self.update_progress)
-
-    center_section.addWidget(self.board_wid, alignment=Qt.AlignmentFlag.AlignCenter)
-    content_layout.addLayout(center_section, 3)
-
-    right_section = QVBoxLayout()
-
-    if self.mode != "SOLO":
-        label_text = "PLAYER 2 (CPU)" if self.mode == "VERSUS" else "ALGORITHM B"
-        player2_label = QLabel(label_text)
-        player2_label.setObjectName("Subtitle")
-
-        self.combo_algo_2 = QComboBox()
-        self.combo_algo_2.addItems(STRATEGIES)
-        self.combo_algo_2.currentTextChanged.connect(
-            lambda s: self.av2.set_strategy(s, "#888888")
-        )
-
-        right_section.addWidget(player2_label, alignment=Qt.AlignmentFlag.AlignHCenter)
-        right_section.addWidget(self.combo_algo_2)
-
-        if self.mode == "DUEL":
-            right_section.addSpacing(30)
-
-            self.btn_start = QPushButton("START DUEL")
-            self.btn_start.setObjectName("ActionBtn")
-            self.btn_start.clicked.connect(self.start_duel)
-
-            right_section.addWidget(self.btn_start)
-
-    right_section.addStretch()
-    content_layout.addLayout(right_section, 1)
-
-    root_layout.addLayout(content_layout)
-
-def get_hint(self):
-
-    strategy = self.combo_hint.currentText()
-    self.lbl_status.setText("ANALYZING...")
-    QApplication.processEvents()
-
-    hint_move = self.engine_1.get_hint_move(strategy)
-
-    if not hint_move:
-        self.lbl_status.setText("PUZZLE BLOCKED (Backtrack Required)")
-        return
-
-    self.lbl_status.setText("HINT FOUND")
-    self.board_wid.show_hint(hint_move)
-    self.status_timer.start(2000)
+    def get_hint(self):
+        strat = self.combo_hint.currentText()
+        self.lbl_status.setText("ANALYZING...")
+        QApplication.processEvents()
+        
+        move = self.engine_1.get_hint_move(strat)
+        if move:
+            self.lbl_status.setText("HINT FOUND")
+            self.board_wid.show_hint(move)
+            self.status_timer.start(2000)
+        else:
+            self.lbl_status.setText("PUZZLE BLOCKED (Backtrack Required)")
 
     def update_progress(self):
         val = self.board.get_progress()
@@ -446,29 +389,23 @@ def get_hint(self):
                 self.current_turn = 2
                 self.update_turn_state()
 
-def start_duel(self):
-
-    for widget in (self.btn_start, self.combo_algo_1, self.combo_algo_2):
-        widget.setEnabled(False)
-
-    self.current_turn = 1
-    self.update_turn_state()
-
-
-def update_turn_state(self):
-
-    player_one = (self.current_turn == 1)
-
-    status_text = "PLAYER 1 TURN" if player_one else "PLAYER 2 TURN"
-    self.lbl_status.setText(status_text)
-
-    self.av1.set_state("THINKING" if player_one else "IDLE")
-    self.av2.set_state("IDLE" if player_one else "THINKING")
-
-    self.board_wid.input_enabled = player_one and (self.mode != "DUEL")
-
-    if not player_one:
+    def start_duel(self):
+        self.btn_start.setEnabled(False)
+        self.combo_algo_1.setEnabled(False)
+        self.combo_algo_2.setEnabled(False)
+        self.current_turn = 1
         self.run_ai_turn()
+
+    def update_turn_state(self):
+        if self.current_turn == 1:
+            self.lbl_status.setText("PLAYER 1 TURN")
+            self.av1.set_state("THINKING"); self.av2.set_state("IDLE")
+            self.board_wid.input_enabled = (self.mode != "DUEL")
+        else:
+            self.lbl_status.setText("PLAYER 2 TURN")
+            self.av1.set_state("IDLE"); self.av2.set_state("THINKING")
+            self.board_wid.input_enabled = False
+            self.run_ai_turn()
 
     def run_ai_turn(self):
         if self.game_over: return
@@ -520,37 +457,29 @@ def update_turn_state(self):
             self.lbl_status.setText(f"VICTORY: {winner_name} WINS")
             self.board_wid.set_victory(True)
 
-def check_win_condition(self):
+    def check_win_condition(self):
+        if self.mode == "SOLO":
+            if self.board.get_progress() >= 1.0:
+                self.lbl_status.setText("PUZZLE SOLVED")
+                self.game_over = True
+                self.board_wid.set_victory(True)
+        else:
+            if not self.board.has_valid_moves():
+                self.game_over = True
+                self.board_wid.set_victory(True)
+                if self.mode == "DUEL": self.timer_duel.stop()
 
-    if self.mode == "SOLO":
-        if self.board.get_progress() >= 1.0:
-            self.game_over = True
-            self.lbl_status.setText("PUZZLE SOLVED")
-            self.board_wid.set_victory(True)
-        return
-
-    if self.board.has_valid_moves():
-        return
-
-    self.game_over = True
-    self.board_wid.set_victory(True)
-
-    if self.mode == "DUEL":
-        self.timer_duel.stop()
-
-    player_one_turn = (self.current_turn == 1)
-
-    if player_one_turn:
-        winner = self.combo_algo_2.currentText() if self.mode != "SOLO" else "CPU"
-        self.av1.set_state("DEFEAT")
-        self.av2.set_state("VICTORY")
-    else:
-        winner = self.combo_algo_1.currentText() if self.mode == "DUEL" else "PLAYER 1"
-        self.av2.set_state("DEFEAT")
-        self.av1.set_state("VICTORY")
-
-    self.lbl_status.setText(f"VICTORY: {winner} WINS")
-
+                winner_name = ""
+                if self.current_turn == 1:
+                    winner_name = self.combo_algo_2.currentText() if self.mode != "SOLO" else "CPU"
+                    self.av1.set_state("DEFEAT")
+                    self.av2.set_state("VICTORY")
+                else:
+                    winner_name = self.combo_algo_1.currentText() if self.mode == "DUEL" else "PLAYER 1"
+                    self.av2.set_state("DEFEAT")
+                    self.av1.set_state("VICTORY")
+                
+                self.lbl_status.setText(f"VICTORY: {winner_name} WINS")
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -562,73 +491,41 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.stack)
         self.create_landing()
 
-def create_landing(self):
+    def create_landing(self):
+        landing = QWidget()
+        lay = QVBoxLayout(landing)
+        lay.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lay.setSpacing(30)
+        
+        title = QLabel("DOMINOSA"); title.setObjectName("Title")
+        sub = QLabel("ALGORITHMIC STRATEGY ENGINE"); sub.setObjectName("Subtitle")
+        
+        lay.addWidget(title, alignment=Qt.AlignmentFlag.AlignCenter)
+        lay.addWidget(sub, alignment=Qt.AlignmentFlag.AlignCenter)
+        lay.addSpacing(20)
+        
+        btn_solo = QPushButton("SOLO PUZZLE"); btn_solo.clicked.connect(lambda: self.launch("SOLO"))
+        btn_vs = QPushButton("HUMAN VS ALGO"); btn_vs.clicked.connect(lambda: self.launch("VERSUS"))
+        btn_duel = QPushButton("ALGO VS ALGO"); btn_duel.clicked.connect(lambda: self.launch("DUEL"))
+        
+        lay.addWidget(btn_solo); lay.addWidget(btn_vs); lay.addWidget(btn_duel)
+        self.stack.addWidget(landing)
 
-    container = QWidget()
-    layout = QVBoxLayout()
-    layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    layout.setSpacing(30)
+    def launch(self, mode):
+        game = GameScreen(self, mode)
+        self.stack.addWidget(game)
+        self.stack.setCurrentWidget(game)
 
-    container.setLayout(layout)
-
-    heading = QLabel("DOMINOSA")
-    heading.setObjectName("Title")
-
-    tagline = QLabel("ALGORITHMIC STRATEGY ENGINE")
-    tagline.setObjectName("Subtitle")
-
-    layout.addWidget(heading, alignment=Qt.AlignmentFlag.AlignCenter)
-    layout.addWidget(tagline, alignment=Qt.AlignmentFlag.AlignCenter)
-    layout.addSpacing(20)
-
-    buttons = {
-        "SOLO PUZZLE": "SOLO",
-        "HUMAN VS ALGO": "VERSUS",
-        "ALGO VS ALGO": "DUEL"
-    }
-
-    for text, mode in buttons.items():
-        btn = QPushButton(text)
-        btn.clicked.connect(lambda _, m=mode: self.launch(m))
-        layout.addWidget(btn)
-
-    self.stack.addWidget(container)
-
-def launch(self, mode):
-
-    new_screen = GameScreen(parent=self, mode=mode)
-    stack_ref = self.stack
-
-    stack_ref.addWidget(new_screen)
-    stack_ref.setCurrentWidget(new_screen)
-
-
-def switch_to_landing(self):
-
-    stack_ref = self.stack
-    active_widget = stack_ref.currentWidget()
-
-    if isinstance(active_widget, GameScreen):
-        active_widget.cleanup()
-        stack_ref.removeWidget(active_widget)
-        active_widget.deleteLater()
-
-    stack_ref.setCurrentIndex(0)
-
+    def switch_to_landing(self):
+        current = self.stack.currentWidget()
+        if isinstance(current, GameScreen):
+            current.cleanup()
+            self.stack.removeWidget(current)
+            current.deleteLater()
+        self.stack.setCurrentIndex(0)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     win = MainWindow()
     win.showMaximized()
-    sys.exit(app.exec())
-
-
-
-
-
-
-
-
-
-
-
+    sys.exit(app.exec()
