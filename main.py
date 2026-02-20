@@ -6,7 +6,7 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QRectF
 from PyQt6.QtGui import QColor, QPainter, QFont, QPen, QBrush
 
 from board import DominosaBoard
-from solver import AI_Engine
+from solver import SolverEngine
 from avatars import AvatarWidget
 from structures import BondState
 
@@ -227,11 +227,6 @@ class BoardWidget(QWidget):
                 
                 qp.setPen(fg)
                 qp.drawText(x, y, self.cell_sz, self.cell_sz, Qt.AlignmentFlag.AlignCenter, str(cell.value))
-                
-        if self.victory_mode:
-            qp.setPen(QColor("#000000"))
-            qp.setFont(QFont("Georgia", 32, QFont.Weight.Bold))
-            qp.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "PUZZLE SOLVED")
 
 class GameScreen(QWidget):
     def __init__(self, parent, mode):
@@ -240,8 +235,8 @@ class GameScreen(QWidget):
         self.mode = mode 
         
         self.board = DominosaBoard(GRID_HARD)
-        self.engine_1 = AI_Engine(self.board)
-        self.engine_2 = AI_Engine(self.board)
+        self.engine_1 = SolverEngine(self.board)
+        self.engine_2 = SolverEngine(self.board)
         
         self.current_turn = 1 
         self.game_over = False
@@ -431,7 +426,6 @@ class GameScreen(QWidget):
             self.board.confirm_edge(move, self.current_turn)
             self.board_wid.repaint()
             self.update_progress()
-            
             self.check_win_condition()
             
             if not self.game_over:
@@ -468,7 +462,7 @@ class GameScreen(QWidget):
                 self.game_over = True
                 self.board_wid.set_victory(True)
                 if self.mode == "DUEL": self.timer_duel.stop()
-
+                
                 winner_name = ""
                 if self.current_turn == 1:
                     winner_name = self.combo_algo_2.currentText() if self.mode != "SOLO" else "CPU"
@@ -498,10 +492,8 @@ class MainWindow(QMainWindow):
         lay.setSpacing(30)
         
         title = QLabel("DOMINOSA"); title.setObjectName("Title")
-        sub = QLabel("ALGORITHMIC STRATEGY ENGINE"); sub.setObjectName("Subtitle")
         
         lay.addWidget(title, alignment=Qt.AlignmentFlag.AlignCenter)
-        lay.addWidget(sub, alignment=Qt.AlignmentFlag.AlignCenter)
         lay.addSpacing(20)
         
         btn_solo = QPushButton("SOLO PUZZLE"); btn_solo.clicked.connect(lambda: self.launch("SOLO"))
@@ -528,4 +520,4 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     win = MainWindow()
     win.showMaximized()
-    sys.exit(app.exec()
+    sys.exit(app.exec())
