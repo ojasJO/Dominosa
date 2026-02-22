@@ -20,7 +20,7 @@ GRID_HARD = [
     [3, 2, 4, 5, 6, 0, 0, 5]
 ]
 
-STRATEGIES = ["GREEDY", "DIVIDE_CONQUER", "DYNAMIC_PROGRAMMING"]
+STRATEGIES = ["GREEDY", "DIVIDE_CONQUER", "DYNAMIC_PROGRAMMING","BACKTRACKING"]
 
 STYLES = """
     QMainWindow { background-color: #FAFAFA; }
@@ -83,7 +83,53 @@ class ProgressBar(QWidget):
         qp.fillRect(0, 0, w, h, QColor("#E0E0E0"))
         fill_w = int(w * self.progress)
         qp.fillRect(0, 0, fill_w, h, QColor("#111111"))
-
+class AnalysisPanel(QGroupBox):
+    def __init__(self):
+        super().__init__("ALGORITHM ANALYSIS")
+        layout = QVBoxLayout(self)
+        layout.setSpacing(4)
+        self.setMinimumWidth(220)
+        def make_row(key):
+            lbl = QLabel("—")
+            lbl.setObjectName("AnalysisLabel")
+            lbl.setWordWrap(True)
+            layout.addWidget(QLabel(key))
+            layout.addWidget(lbl)
+            return lbl
+        self.lbl_algo    = make_row("Strategy:")
+        self.lbl_reason  = make_row("Decision:")
+        self.lbl_nodes   = make_row("Nodes Visited:")
+        self.lbl_time    = make_row("Time (ms):")
+        self.lbl_memo    = make_row("Memo / Notes:")
+        self.lbl_moves   = make_row("Moves Made:")
+        self._moves = 0
+    def update(self, strategy, reason, nodes, ms):
+        self.lbl_algo.setText(strategy)
+        short = reason if len(reason) <= 60 else reason[:57] + "…"
+        self.lbl_reason.setText(short)
+        self.lbl_nodes.setText(str(nodes))
+        self.lbl_time.setText(f"{ms:.2f} ms")
+        memo_str = "—"
+        if "memo" in reason:
+            parts = [p for p in reason.split(",") if "memo" in p or "nodes" in p]
+            memo_str = " | ".join(parts).strip()
+        elif strategy == "DYNAMIC_PROGRAMMING":
+            memo_str = "memoized tiling check"
+        elif strategy == "BACKTRACKING":
+            memo_str = "MCV + pruning + memo"
+        elif strategy == "DIVIDE_CONQUER":
+            memo_str = "island decomposition"
+        elif strategy == "GREEDY":
+            memo_str = "forced singles first"
+        self.lbl_memo.setText(memo_str)
+    def increment_moves(self):
+        self._moves += 1
+        self.lbl_moves.setText(str(self._moves))
+    def reset(self):
+        self._moves = 0
+        for lbl in [self.lbl_algo, self.lbl_reason, self.lbl_nodes,
+                    self.lbl_time, self.lbl_memo, self.lbl_moves]:
+            lbl.setText("—")
 class BoardWidget(QWidget):
     move_made = pyqtSignal(object) 
     board_changed = pyqtSignal()
@@ -521,3 +567,4 @@ if __name__ == "__main__":
     win = MainWindow()
     win.showMaximized()
     sys.exit(app.exec())
+
