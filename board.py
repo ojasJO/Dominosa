@@ -5,6 +5,7 @@ from PyQt6.QtGui import QColor, QPainter, QFont, QPen, QBrush
 from structures import CellNode, EdgeBond, BondState
 from typing import List, Tuple, Set
 
+
 class DominosaBoard:
     def __init__(self, matrix: List[List[int]]):
         self.rows = len(matrix)
@@ -118,6 +119,7 @@ class DominosaBoard:
         if self.total_dominoes == 0: return 0.0
         return len(self.placed_dominoes) / self.total_dominoes
 
+
 class BoardWidget(QWidget):
     move_made = pyqtSignal(object) 
     board_changed = pyqtSignal()
@@ -161,7 +163,7 @@ class BoardWidget(QWidget):
         c = e.pos().x() // self.cell_sz
         r = e.pos().y() // self.cell_sz
         
-        if 0 <= r < self.board.rows and 0 <= c < self.board.cols:
+        if 0 <= r < self.board.rows and 0 <= c < self.board.cols: 
             clicked_node = self.board.cells[r][c]
             
             if clicked_node.occupied:
@@ -197,7 +199,7 @@ class BoardWidget(QWidget):
     def paintEvent(self, e):
         qp = QPainter(self)
         qp.setRenderHint(QPainter.RenderHint.Antialiasing)
-        qp.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+        qp.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold)) 
         
         if self.victory_mode:
             qp.fillRect(self.rect(), QColor("#FFD700"))
@@ -245,9 +247,7 @@ class BoardWidget(QWidget):
             n1, n2 = self.hint_edge.node_a, self.hint_edge.node_b
             x1, y1 = n1.c * self.cell_sz + self.cell_sz/2, n1.r * self.cell_sz + self.cell_sz/2
             x2, y2 = n2.c * self.cell_sz + self.cell_sz/2, n2.r * self.cell_sz + self.cell_sz/2
-            pen = QPen(QColor(200, 200, 200, 150))
-            pen.setWidth(40)
-            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            pen = QPen(QColor(200, 200, 200, 150)); pen.setWidth(40); pen.setCapStyle(Qt.PenCapStyle.RoundCap)
             qp.setPen(pen)
             qp.drawLine(int(x1), int(y1), int(x2), int(y2))
 
@@ -260,12 +260,9 @@ class BoardWidget(QWidget):
                 if cell.occupied: fg = QColor("#FFFFFF")
                 
                 qp.setPen(fg)
-                qp.drawText(x, y, self.cell_sz, self.cell_sz,
-                            Qt.AlignmentFlag.AlignCenter, str(cell.value))
-
+                qp.drawText(x, y, self.cell_sz, self.cell_sz, Qt.AlignmentFlag.AlignCenter, str(cell.value))
+                
         if self.victory_mode:
             qp.setPen(QColor("#000000"))
             qp.setFont(QFont("Times New Roman", 36, QFont.Weight.Bold))
-            qp.drawText(self.rect(),
-                        Qt.AlignmentFlag.AlignCenter,
-                        "PUZZLE SOLVED")
+            qp.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "PUZZLE SOLVED")
