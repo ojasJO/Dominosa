@@ -1,5 +1,6 @@
 import sys
 import time
+import random
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                              QPushButton, QLabel, QStackedWidget, QComboBox, QFrame, QSizePolicy)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QRectF
@@ -20,7 +21,7 @@ GRID_HARD = [
     [3, 2, 4, 5, 6, 0, 0, 5]
 ]
 
-STRATEGIES = ["GREEDY", "DIVIDE_CONQUER", "DYNAMIC_PROGRAMMING","BACKTRACKING"]
+STRATEGIES = ["GREEDY", "DIVIDE_CONQUER", "DYNAMIC_PROGRAMMING", "BACKTRACKING"]
 
 STYLES = """
     QMainWindow { background-color: #FAFAFA; }
@@ -43,13 +44,13 @@ STYLES = """
     QPushButton#ActionBtn:hover { background-color: #333; }
     
     QComboBox { 
-        border: 1px solid #CCC; padding: 6px; min-width: 160px; 
+        border: 1px solid #CCC; padding: 6px; min-width: 120px; 
         background: #FFF; border-radius: 4px;
     }
 """
 
 class StrategyWorker(QThread):
-    finished = pyqtSignal(object, str, int) 
+    finished = pyqtSignal(object, str, int)
     
     def __init__(self, engine, strategy):
         super().__init__()
@@ -83,53 +84,7 @@ class ProgressBar(QWidget):
         qp.fillRect(0, 0, w, h, QColor("#E0E0E0"))
         fill_w = int(w * self.progress)
         qp.fillRect(0, 0, fill_w, h, QColor("#111111"))
-class AnalysisPanel(QGroupBox):
-    def __init__(self):
-        super().__init__("ALGORITHM ANALYSIS")
-        layout = QVBoxLayout(self)
-        layout.setSpacing(4)
-        self.setMinimumWidth(220)
-        def make_row(key):
-            lbl = QLabel("—")
-            lbl.setObjectName("AnalysisLabel")
-            lbl.setWordWrap(True)
-            layout.addWidget(QLabel(key))
-            layout.addWidget(lbl)
-            return lbl
-        self.lbl_algo    = make_row("Strategy:")
-        self.lbl_reason  = make_row("Decision:")
-        self.lbl_nodes   = make_row("Nodes Visited:")
-        self.lbl_time    = make_row("Time (ms):")
-        self.lbl_memo    = make_row("Memo / Notes:")
-        self.lbl_moves   = make_row("Moves Made:")
-        self._moves = 0
-    def update(self, strategy, reason, nodes, ms):
-        self.lbl_algo.setText(strategy)
-        short = reason if len(reason) <= 60 else reason[:57] + "…"
-        self.lbl_reason.setText(short)
-        self.lbl_nodes.setText(str(nodes))
-        self.lbl_time.setText(f"{ms:.2f} ms")
-        memo_str = "—"
-        if "memo" in reason:
-            parts = [p for p in reason.split(",") if "memo" in p or "nodes" in p]
-            memo_str = " | ".join(parts).strip()
-        elif strategy == "DYNAMIC_PROGRAMMING":
-            memo_str = "memoized tiling check"
-        elif strategy == "BACKTRACKING":
-            memo_str = "MCV + pruning + memo"
-        elif strategy == "DIVIDE_CONQUER":
-            memo_str = "island decomposition"
-        elif strategy == "GREEDY":
-            memo_str = "forced singles first"
-        self.lbl_memo.setText(memo_str)
-    def increment_moves(self):
-        self._moves += 1
-        self.lbl_moves.setText(str(self._moves))
-    def reset(self):
-        self._moves = 0
-        for lbl in [self.lbl_algo, self.lbl_reason, self.lbl_nodes,
-                    self.lbl_time, self.lbl_memo, self.lbl_moves]:
-            lbl.setText("—")
+
 class BoardWidget(QWidget):
     move_made = pyqtSignal(object) 
     board_changed = pyqtSignal()
@@ -138,7 +93,7 @@ class BoardWidget(QWidget):
         super().__init__()
         self.board = board
         self.cell_sz = 60
-        self.setFixedSize(board.cols * self.cell_sz + 4, board.rows * self.cell_sz + 4)
+        self.update_dimensions()
         
         self.selected_node = None
         self.hint_edge = None
@@ -152,6 +107,9 @@ class BoardWidget(QWidget):
         self.hint_timer.timeout.connect(self.clear_hint)
         
         self.input_enabled = True 
+
+    def update_dimensions(self):
+        self.setFixedSize(self.board.cols * self.cell_sz + 4, self.board.rows * self.cell_sz + 4)
 
     def set_victory(self, state):
         self.victory_mode = state
@@ -323,12 +281,20 @@ class GameScreen(QWidget):
         self.lbl_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_status.setFont(QFont("Segoe UI", 12, QFont.Weight.DemiBold))
         
+        gen_lay = QHBoxLayout()
+        gen_lay.setSpacing(10)
+        self.combo_size = QComboBox()
+        self.combo_size.addItems(["Double-2", "Double-3", "Double-4", "Double-5", "Double-6"])
+        btn_gen = QPushButton("GENERATE PUZZLE"); btn_gen.setObjectName("ActionBtn")
+        btn_gen.clicked.connect(self.generate_new_board)
+        gen_lay.addWidget(self.combo_size)
+        gen_lay.addWidget(btn_gen)
+        
         top_ctrl.addWidget(btn_back)
         top_ctrl.addStretch()
         top_ctrl.addWidget(self.lbl_status)
         top_ctrl.addStretch()
-        dummy = QPushButton(""); dummy.setFixedWidth(140); dummy.setVisible(False)
-        top_ctrl.addWidget(dummy)
+        top_ctrl.addLayout(gen_lay)
         main_lay.addLayout(top_ctrl)
         
         cols_lay = QHBoxLayout()
@@ -341,6 +307,7 @@ class GameScreen(QWidget):
             self.av2.setVisible(False)
         
         left_col = QVBoxLayout()
+        
         if self.mode != "SOLO":
             lbl_p1 = QLabel("PLAYER 1" if self.mode == "VERSUS" else "ALGORITHM A")
             lbl_p1.setObjectName("Subtitle")
@@ -401,6 +368,110 @@ class GameScreen(QWidget):
         cols_lay.addLayout(right_col, 1)
         main_lay.addLayout(cols_lay)
 
+    def generate_new_board(self):
+        size_txt = self.combo_size.currentText()
+        n = int(size_txt.split("-")[1])
+        self.lbl_status.setText("GENERATING UNIQUE BOARD...")
+        QApplication.processEvents()
+        
+        matrix = self._build_valid_matrix(n)
+        
+        self.board = DominosaBoard(matrix)
+        self.engine_1 = SolverEngine(self.board)
+        self.engine_2 = SolverEngine(self.board)
+        
+        self.board_wid.board = self.board
+        self.board_wid.update_dimensions()
+        self.board_wid.selected_node = None
+        self.board_wid.hint_edge = None
+        self.board_wid.set_victory(False)
+        self.board_wid.clear_flash()
+        self.board_wid.clear_hint()
+        
+        self.game_over = False
+        self.current_turn = 1
+        if self.mode == "DUEL":
+            self.btn_start.setEnabled(True)
+            self.combo_algo_1.setEnabled(True)
+            self.combo_algo_2.setEnabled(True)
+            self.timer_duel.stop()
+            self.lbl_status.setText("READY")
+        else:
+            self.lbl_status.setText("YOUR TURN")
+            self.board_wid.input_enabled = True
+            
+        self.update_progress()
+        self.board_wid.repaint()
+
+    def _build_valid_matrix(self, n):
+        rows, cols = n + 1, n + 2
+        dominoes = []
+        for i in range(n + 1):
+            for j in range(i, n + 1):
+                dominoes.append(tuple(sorted((i, j))))
+        
+        while True:
+            grid = [[-1]*cols for _ in range(rows)]
+            d_list = list(dominoes)
+            random.shuffle(d_list)
+            
+            def place(idx):
+                if idx == len(d_list): return True
+                r, c = -1, -1
+                for i in range(rows):
+                    for j in range(cols):
+                        if grid[i][j] == -1:
+                            r, c = i, j
+                            break
+                    if r != -1: break
+                
+                d = d_list[idx]
+                placements = [(0, 1), (1, 0)]
+                random.shuffle(placements)
+                for dr, dc in placements:
+                    nr, nc = r + dr, c + dc
+                    if nr < rows and nc < cols and grid[nr][nc] == -1:
+                        v1, v2 = d if random.random() > 0.5 else (d[1], d[0])
+                        grid[r][c] = v1
+                        grid[nr][nc] = v2
+                        if place(idx + 1): return True
+                        grid[r][c] = -1
+                        grid[nr][nc] = -1
+                return False
+            
+            if not place(0): continue
+            
+            solutions = [0]
+            def check_unique(mask, available):
+                if solutions[0] > 1: return
+                if not available:
+                    solutions[0] += 1
+                    return
+                
+                idx = 0
+                while (mask & (1 << idx)): idx += 1
+                r, c = idx // cols, idx % cols
+                
+                if c + 1 < cols and not (mask & (1 << (idx + 1))):
+                    v1, v2 = grid[r][c], grid[r][c+1]
+                    pair = tuple(sorted((v1, v2)))
+                    if pair in available:
+                        av2 = set(available)
+                        av2.remove(pair)
+                        check_unique(mask | (1 << idx) | (1 << (idx + 1)), av2)
+                
+                if r + 1 < rows and not (mask & (1 << (idx + cols))):
+                    v1, v2 = grid[r][c], grid[r+1][c]
+                    pair = tuple(sorted((v1, v2)))
+                    if pair in available:
+                        av2 = set(available)
+                        av2.remove(pair)
+                        check_unique(mask | (1 << idx) | (1 << (idx + cols)), av2)
+            
+            check_unique(0, set(dominoes))
+            if solutions[0] == 1:
+                return grid
+
     def get_hint(self):
         strat = self.combo_hint.currentText()
         self.lbl_status.setText("ANALYZING...")
@@ -412,7 +483,7 @@ class GameScreen(QWidget):
             self.board_wid.show_hint(move)
             self.status_timer.start(2000)
         else:
-            self.lbl_status.setText("PUZZLE BLOCKED (Backtrack Required)")
+            self.lbl_status.setText("PUZZLE BLOCKED")
 
     def update_progress(self):
         val = self.board.get_progress()
@@ -472,6 +543,7 @@ class GameScreen(QWidget):
             self.board.confirm_edge(move, self.current_turn)
             self.board_wid.repaint()
             self.update_progress()
+            
             self.check_win_condition()
             
             if not self.game_over:
@@ -508,7 +580,7 @@ class GameScreen(QWidget):
                 self.game_over = True
                 self.board_wid.set_victory(True)
                 if self.mode == "DUEL": self.timer_duel.stop()
-                
+
                 winner_name = ""
                 if self.current_turn == 1:
                     winner_name = self.combo_algo_2.currentText() if self.mode != "SOLO" else "CPU"
@@ -567,4 +639,3 @@ if __name__ == "__main__":
     win = MainWindow()
     win.showMaximized()
     sys.exit(app.exec())
-
