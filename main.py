@@ -86,85 +86,82 @@ class ProgressBar(QWidget):
         qp.fillRect(0, 0, fill_w, h, QColor("#111111"))
 
 class BoardWidget(QWidget):
-    move_made = pyqtSignal(object)
+    move_made = pyqtSignal(object) 
     board_changed = pyqtSignal()
-
+    
     def __init__(self, board):
         super().__init__()
-        self.board_ref = board
-        self.cell_size = 60
-        self._set_size()
+        self.board = board
+        self.cell_sz = 60
+        self.update_dimensions()
+        
+        self.selected_node = None
+        self.hint_edge = None
+        self.victory_mode = False
+        
+        self.flash_timer = QTimer()
+        self.flash_timer.timeout.connect(self.clear_flash)
+        self.flash_active = False
+        
+        self.hint_timer = QTimer()
+        self.hint_timer.timeout.connect(self.clear_hint)
+        
+        self.input_enabled = True 
 
-        self.active_node = None
-        self.current_hint = None
-        self.win_state = False
+    def update_dimensions(self):
+        self.setFixedSize(self.board.cols * self.cell_sz + 4, self.board.rows * self.cell_sz + 4)
 
-        self.invalid_timer = QTimer()
-        self.invalid_timer.timeout.connect(self._stop_flash)
-        self.invalid_flash = False
-
-        self.tip_timer = QTimer()
-        self.tip_timer.timeout.connect(self._remove_hint)
-
-        self.allow_input = True
-
-    def _set_size(self):
-        w = self.board_ref.cols * self.cell_size + 4
-        h = self.board_ref.rows * self.cell_size + 4
-        self.setFixedSize(w, h)
-
-    def set_victory(self, val):
-        self.win_state = val
+    def set_victory(self, state):
+        self.victory_mode = state
         self.repaint()
 
     def show_hint(self, edge):
-        self.current_hint = edge
+        self.hint_edge = edge
         self.repaint()
-        self.tip_timer.start(2000)
+        self.hint_timer.start(2000)
 
-    def _remove_hint(self):
-        self.current_hint = None
-        self.tip_timer.stop()
+    def clear_hint(self):
+        self.hint_edge = None
+        self.hint_timer.stop()
         self.repaint()
 
-    def mousePressEvent(self, event):
-        if not self.allow_input or self.win_state:
-            return
-
-        col = event.pos().x() // self.cell_size
-        row = event.pos().y() // self.cell_size
-
-        if 0 <= row < self.board_ref.rows and 0 <= col < self.board_ref.cols:
-            node = self.board_ref.cells[row][col]
-
-            if node.occupied:
-                for edge in node.edges:
+    def mousePressEvent(self, e):
+        if not self.input_enabled or self.victory_mode: return
+        
+        c = e.pos().x() // self.cell_sz
+        r = e.pos().y() // self.cell_sz
+        
+        if 0 <= r < self.board.rows and 0 <= c < self.board.cols:
+            clicked_node = self.board.cells[r][c]
+            
+            if clicked_node.occupied:
+                for edge in clicked_node.edges:
                     if edge.state == BondState.CONFIRMED:
-                        self.board_ref.remove_edge(edge)
+                        self.board.remove_edge(edge)
                         self.board_changed.emit()
                         self.repaint()
                         return
 
-            if self.active_node is None:
-                self.active_node = node
+            if not self.selected_node:
+                self.selected_node = clicked_node
                 self.repaint()
             else:
-                if node == self.active_node:
-                    self.active_node = None
+                if clicked_node == self.selected_node:
+                    self.selected_node = None 
                 else:
-                    if self.board_ref.validate_move(self.active_node, node):
-                        e = self.board_ref.get_edge(self.active_node, node)
-                        self.move_made.emit(e)
-                        self.active_node = None
+                    if self.board.validate_move(self.selected_node, clicked_node):
+                        edge = self.board.get_edge(self.selected_node, clicked_node)
+                        self.move_made.emit(edge)
+                        self.selected_node = None
                     else:
-                        self.invalid_flash = True
-                        self.invalid_timer.start(300)
-                        self.active_node = None
+                        self.flash_active = True
+                        self.flash_timer.start(300)
+                        self.selected_node = None
                 self.repaint()
 
-    def _stop_flash(self):
-        self.invalid_flash = False
-        self.invalid_timer.stop()
+    def clear_flash(self):
+        self.flash_active = False
+        self.flash_timer.stop()
         self.repaint()
 
     def paintEvent(self, e):
@@ -642,4 +639,5 @@ if __name__ == "__main__":
     win = MainWindow()
     win.showMaximized()
     sys.exit(app.exec())
+
 
